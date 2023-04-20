@@ -1,0 +1,4 @@
+export default {
+  PORT: 3500,
+  DISCONNECT_TYPE: 'DELETE_SOCKET', //'DELETE_SOCKET' | 'DELETE_USER'
+};
