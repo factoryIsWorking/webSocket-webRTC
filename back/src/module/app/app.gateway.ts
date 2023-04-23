@@ -8,9 +8,7 @@ import {
   MessageBody,
   ConnectedSocket,
 } from '@nestjs/websockets';
-import { ActionRequest } from './socket.type';
 import { Server, Socket } from 'socket.io';
-import { AppSocketService } from './app.socket.service';
 import config from 'config';
 
 @WebSocketGateway({
@@ -22,7 +20,7 @@ import config from 'config';
 export class AppGateway
   implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
 {
-  constructor(private readonly app: AppSocketService) {}
+  constructor() {}
   handleConnection(client: Socket, ...args: any[]) {
     console.log('Client connected' + client);
   }
@@ -43,15 +41,5 @@ export class AppGateway
   }
   afterInit(server: any) {
     console.log('WS inited');
-  }
-
-  @WebSocketServer() server: Server;
-
-  @SubscribeMessage('app')
-  appSocket(
-    @ConnectedSocket() socket: Socket,
-    @MessageBody() data: ActionRequest,
-  ) {
-    this.app.dealSocket(socket, data);
   }
 }

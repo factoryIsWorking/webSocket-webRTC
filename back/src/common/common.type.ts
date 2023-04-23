@@ -1,57 +1,72 @@
-import { Socket } from 'socket.io';
-import { ActionRequest } from 'src/module/app/socket.type';
-
-export class CallbackList {
-  delete: Set<Function> | Function = new Set<Function>();
-  set: Set<Function> | Function = new Set<Function>();
-}
+type Callbacks = {
+  _onDestroy?: Function;
+  _onUpdate?: Function;
+  [props: string]: any;
+};
 
 export class Factory<T> {
-  callbackMaps = new Map<T, CallbackList>();
-  create(init: T) {
-    const callbacks = new CallbackList();
-    this.callbackMaps.set(init, callbacks);
-    return new Proxy(init as Object, {
-      set(obj, prop, value): boolean {
-        for (const func of callbacks.set as Set<Function>) {
-          func(obj, prop, value);
-        }
-        return Reflect.set(obj, prop, value);
+  constructor(private readonly constructorFn: new (...args: any[]) => T) {}
+  list = new Set<T>();
+  make(...args: any[]): T {
+    const obj = new this.constructorFn(...args);
+    Object.defineProperties(obj, {
+      _onDestroy: {
+        value: new Set<Function>(),
+        writable: false,
+        enumerable: false,
+      },
+      _onUpdate: {
+        value: new Set<Function>(),
+        writable: false,
+        enumerable: false,
       },
     });
-  }
-  delete(target: T): boolean {
-    if (this.callbackMaps.has(target)) {
-      const callbacks = this.callbackMaps.get(target);
-      this.callbackMaps.delete(target);
-      for (const func of callbacks.delete as Set<Function>) {
-        func(target);
-      }
-      return true;
-    } else {
-      return false;
-    }
-  }
-  addListener(target: T, callbacks: CallbackList): boolean {
-    if (this.callbackMaps.has(target)) {
-      const map = this.callbackMaps.get(target);
-      for (const [event, func] of Object.entries(callbacks)) {
-        map[event].add(func);
-      }
-      return true;
-    } else {
-      return false;
-    }
-  }
-  removeListener(target: T, callbacks: CallbackList): boolean {
-    if (this.callbackMaps.has(target)) {
-      const map = this.callbackMaps.get(target);
-      for (const [event, func] of Object.entries(callbacks)) {
-        map[event].delete(func);
-      }
-      return true;
-    } else {
-      return false;
-    }
+    Object.defineProperties(obj, {
+      _destory: {
+        value: function () {
+          for (const callback of this._onDestroy) {
+            callback(obj);
+          }
+          return obj;
+        },
+        writable: false,
+        enumerable: false,
+      },
+      _addListener: {
+        value: function (callbacks: Callbacks) {
+          for (const event in callbacks) {
+            this[event].add(callbacks[event] as Function);
+          }
+          return callbacks;
+        },
+        writable: false,
+        enumerable: false,
+      },
+      _removeListener: {
+        value: function (callbacks: Callbacks) {
+          const res: any = {};
+          for (const event in callbacks) {
+            const [callbackSet, target] = [this[event], callbacks[event]];
+            if (callbackSet.has(target)) {
+              res[event] = true;
+              callbackSet.delete(target as Function);
+            } else {
+              res[event] = false;
+            }
+          }
+          return res;
+        },
+        writable: false,
+        enumerable: false,
+      },
+    });
+    return new Proxy(obj as Object, {
+      set(target, prop, receiver): boolean {
+        for (const callback of (obj as any)._onUpdate) {
+          callback(target, prop, receiver);
+        }
+        return Reflect.set(target, prop, receiver);
+      },
+    }) as T;
   }
 }
