@@ -1,11 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { UserFactory } from './user.factory';
+import { User, UserFactory } from './user.model';
 
 @Injectable()
 export class UserService {
   constructor() {}
-  makeNewUser(name: string) {
-    const newUser = UserFactory.make(name);
-    console.log(newUser);
+  makeNewUser(name: string): User {
+    const newOne = UserFactory.make({ name: name });
+    return newOne;
   }
 }
